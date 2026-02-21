@@ -1,51 +1,38 @@
 Vue.component('card-component', {
     props: ['card', 'columnIndex'],
-    data() { return { isEditing: false, error: '' }; },
+    data() {
+        return { isEditing: false, error: '', showReturnInput: false };
+    },
     methods: {
         editCard() { this.isEditing = true; },
         saveCard() {
-            if (!this.card.title.trim()) { this.error = 'Заголовок пуст'; return; }
+            if (!this.card.title.trim()) { this.error = 'Заголовок не может быть пустым'; return; }
             this.isEditing = false;
             this.card.lastEdited = new Date().toLocaleString();
             this.$emit('update-card', this.card);
+        },
+        returnToWork() { this.showReturnInput = true; },
+        saveReturnReason() {
+            if (this.card.returnReason.trim()) {
+                this.showReturnInput = false;
+                this.$emit('move-card', { cardId: this.card.id, fromColumnIndex: this.columnIndex, toColumnIndex: 1 });
+            }
         }
     },
     template: `
         <div class="card">
             <div v-if="!isEditing">
                 <h3>{{ card.title }}</h3>
-                <p>{{ card.description }}</p>
+                <p v-if="card.returnReason"><b>Причина возврата:</b> {{ card.returnReason }}</p>
+                <div v-if="showReturnInput">
+                    <input v-model="card.returnReason" placeholder="Укажите причину возврата">
+                    <button @click="saveReturnReason">Сохранить причину</button>
+                </div>
                 <button @click="editCard">Редактировать</button>
-                <button v-if="columnIndex === 0" @click="$emit('delete-card', card.id, columnIndex)">Удалить</button>
-                <button v-if="columnIndex === 0" @click="$emit('move-card', { cardId: card.id, fromColumnIndex: columnIndex, toColumnIndex: 1 })">В работу</button>
+                <button v-if="columnIndex === 2" @click="returnToWork">Вернуть в работу</button>
+                <button v-if="columnIndex === 2" @click="$emit('move-card', { cardId: card.id, fromColumnIndex: columnIndex, toColumnIndex: 3 })">Завершить</button>
+                </div>
             </div>
-            <div v-else>
-                <input v-model="card.title">
-                <textarea v-model="card.description"></textarea>
-                <button @click="saveCard">Сохранить</button>
-            </div>
-        </div>
-    `
-});
-
-Vue.component('column-component', {
-    props: ['column', 'columnIndex'],
-    template: `
-        <div class="column">
-            <h2>{{ column.title }}</h2>
-            <button v-if="columnIndex === 0" @click="$emit('add-card', columnIndex)">Добавить карточку</button>
-            <div class="cards">
-                <card-component
-                    v-for="card in column.cards"
-                    :key="card.id"
-                    :card="card"
-                    :column-index="columnIndex"
-                    @delete-card="$emit('delete-card', $event, columnIndex)"
-                    @move-card="$emit('move-card', $event)"
-                    @update-card="$emit('update-card', $event)"
-                ></card-component>
-            </div>
-        </div>
     `
 });
 
