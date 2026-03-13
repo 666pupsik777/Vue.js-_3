@@ -118,7 +118,6 @@ Vue.component('notepad', {
             const idx = this.columns[fromCol].cards.findIndex(c => c.id === cardId);
             const card = this.columns[fromCol].cards.splice(idx, 1)[0];
 
-            // Логика проверки дедлайна при переходе в 4-й столбец (индекс 3)
             if (toCol === 3) {
                 if (card.deadline) {
                     const now = new Date();
@@ -138,7 +137,6 @@ Vue.component('notepad', {
                     card.completionStatus = "Срок дэдлайна не указан";
                 }
             } else {
-                // Сброс статусов при возврате из выполненных
                 card.isOverdue = false;
                 card.isCompleted = false;
                 card.completionStatus = '';
