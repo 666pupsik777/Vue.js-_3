@@ -1,84 +1,93 @@
 Vue.component('card-component', {
     props: ['card', 'columnIndex'],
     data() {
-        return { isEditing: false, error: '', showReturnInput: false };
-    },
-    mounted() {
-        localStorage.clear();
+        return {
+            isEditing: false,
+            showReturnInput: false,
+            returnReasonText: ''
+        };
     },
     methods: {
-        editCard() { this.isEditing = true; this.error = ''; },
-        saveCard() {
-            if (!this.card.title.trim()) { this.error = 'Заголовок не может быть пустым'; return; }
-            this.isEditing = false;
-            this.card.lastEdited = new Date().toLocaleString();
-            this.$emit('update-card', this.card);
+        saveEdit() {
+            if (this.card.title.trim()) {
+                this.card.lastEdited = new Date().toLocaleString();
+                this.isEditing = false;
+                this.$emit('update-card');
+            }
         },
-        returnToWork() { this.showReturnInput = true; },
-        saveReturnReason() {
-            if (this.card.returnReason.trim()) {
+        confirmReturn() {
+            if (this.returnReasonText.trim()) {
+                this.card.returnReason = this.returnReasonText;
                 this.showReturnInput = false;
                 this.$emit('move-card', { cardId: this.card.id, fromColumnIndex: this.columnIndex, toColumnIndex: 1 });
             }
         }
     },
     template: `
-        <div class="card" :class="{ 'card-overdue': card.isOverdue, 'card-completed': card.isCompleted }">
+        <div class="card" :class="{'card-overdue': card.isOverdue, 'card-completed': card.isCompleted}">
             <div v-if="!isEditing">
                 <h3>{{ card.title }}</h3>
-                <p>{{ card.description }}</p>
-                <p><b>Создано:</b> {{ card.createdAt }}</p>
-                <p><b>Изменено:</b> {{ card.lastEdited || 'Нет' }}</p>
-                <p><b>Дедлайн:</b> {{ card.deadline ? new Date(card.deadline).toLocaleString() : 'Нет' }}</p>
-                <p v-if="card.returnReason"><b>Причина возврата:</b> {{ card.returnReason }}</p>
-                <div v-if="showReturnInput">
-                    <input v-model="card.returnReason" placeholder="Укажите причину возврата">
-                    <button @click="saveReturnReason">Сохранить причину</button>
+                
+                <p v-if="card.description && card.description.trim()">{{ card.description }}</p>
+                <p v-else class="empty-hint">Описание отсутствует...</p>
+
+                <div class="card-info-block">
+                    <p v-if="card.deadline"><b>Дэдлайн:</b> {{ new Date(card.deadline).toLocaleString() }}</p>
+                    <p v-else class="empty-hint">Дэдлайн не указан</p>
+                    
+                    <p><b>Создано:</b> {{ card.createdAt }}</p>
+                    <p v-if="card.lastEdited"><b>Изменено:</b> {{ card.lastEdited }}</p>
                 </div>
-                <button @click="editCard">Редактировать</button>
-                <button v-if="columnIndex === 0" @click="$emit('delete-card', card.id, columnIndex)">Удалить</button>
-                <button v-if="columnIndex === 0" @click="$emit('move-card', { cardId: card.id, fromColumnIndex: columnIndex, toColumnIndex: 1 })">В работу</button>
-                <button v-if="columnIndex === 1" @click="$emit('move-card', { cardId: card.id, fromColumnIndex: columnIndex, toColumnIndex: 2 })">В тестирование</button>
-                <button v-if="columnIndex === 2" @click="returnToWork">Вернуть в работу</button>
-                <button v-if="columnIndex === 2" @click="$emit('move-card', { cardId: card.id, fromColumnIndex: columnIndex, toColumnIndex: 3 })">Завершить</button>
+                
+                <p v-if="card.returnReason" class="return-tag">
+                    <b>Причина возврата:</b> {{ card.returnReason }}
+                </p>
+
+                <div v-if="columnIndex === 3 && card.completionStatus" 
+                     :class="['deadline-status', card.isOverdue ? 'status-fail' : 'status-success']">
+                    {{ card.completionStatus }}
+                </div>
+
+                <div v-if="showReturnInput" class="return-form">
+                    <input v-model="returnReasonText" placeholder="Причина возврата">
+                    <button class="btn-mini-ok" @click="confirmReturn">OK</button>
+                </div>
+
+                <div class="card-buttons">
+                    <button v-if="columnIndex !== 3" class="btn-action btn-edit" @click="isEditing = true">Редактировать</button>
+                    
+                    <button v-if="columnIndex === 0 || columnIndex === 3" class="btn-action btn-delete" @click="$emit('delete-card', card.id, columnIndex)">Удалить</button>
+                    
+                    <button v-if="columnIndex === 0" class="btn-action btn-move" @click="$emit('move-card', { cardId: card.id, fromColumnIndex: 0, toColumnIndex: 1 })">В работу</button>
+                    <button v-if="columnIndex === 1" class="btn-action btn-move" @click="$emit('move-card', { cardId: card.id, fromColumnIndex: 1, toColumnIndex: 2 })">В тест</button>
+                    <button v-if="columnIndex === 2" class="btn-action btn-done" @click="$emit('move-card', { cardId: card.id, fromColumnIndex: 2, toColumnIndex: 3 })">Завершить</button>
+
+                    <button v-if="columnIndex === 2" class="btn-action btn-return" @click="showReturnInput = true">Вернуть</button>
+                    
+                    <button v-if="columnIndex === 3" class="btn-action btn-return" @click="$emit('move-card', { cardId: card.id, fromColumnIndex: 3, toColumnIndex: 2 })">В тест</button>
+                </div>
             </div>
-            <div v-else>
-                <input v-model="card.title" placeholder="Заголовок" required>
+            
+            <div v-else class="edit-mode-container">
+                <input v-model="card.title" placeholder="Заголовок">
                 <textarea v-model="card.description" placeholder="Описание"></textarea>
                 <input type="datetime-local" v-model="card.deadline">
-                <button @click="saveCard">Сохранить</button>
-                <p v-if="error" class="error">{{ error }}</p>
+                <div class="edit-btns">
+                    <button class="btn-action btn-done" @click="saveEdit">Сохранить</button>
+                    <button class="btn-action btn-edit" @click="isEditing = false">Отмена</button>
+                </div>
             </div>
         </div>
     `
 });
 
-Vue.component('column-component', {
-    props: ['column', 'columnIndex'],
-    template: `
-        <div class="column">
-            <h2>{{ column.title }}</h2>
-            <button v-if="columnIndex === 0" @click="$emit('add-card', columnIndex)">Добавить карточку</button>
-            <div class="cards">
-                <card-component
-                    v-for="card in column.cards"
-                    :key="card.id"
-                    :card="card"
-                    :column-index="columnIndex"
-                    @delete-card="$emit('delete-card', $event, columnIndex)"
-                    @move-card="$emit('move-card', $event)"
-                    @update-card="$emit('update-card', $event)"
-                ></card-component>
-            </div>
-        </div>
-    `
-});
-
-const app = new Vue({
-    el: '#app',
+Vue.component('notepad', {
     data() {
         return {
-            columns: JSON.parse(localStorage.getItem("columns")) || [
+            newTitle: '',
+            newDesc: '',
+            newDeadline: '',
+            columns: JSON.parse(localStorage.getItem('kanban_final_fixed')) || [
                 { title: 'Запланированные задачи', cards: [] },
                 { title: 'Задачи в работе', cards: [] },
                 { title: 'Тестирование', cards: [] },
@@ -87,34 +96,88 @@ const app = new Vue({
         };
     },
     methods: {
-        addCard(columnIndex) {
-            const newCard = { id: Date.now(), title: '', description: '', createdAt: new Date().toLocaleString(), deadline: null, lastEdited: null, returnReason: '', isOverdue: false, isCompleted: false };
-            this.columns[columnIndex].cards.push(newCard);
-            this.saveToLocalStorage();
+        addCard() {
+            if (!this.newTitle.trim()) return;
+            const card = {
+                id: Date.now(),
+                title: this.newTitle,
+                description: this.newDesc,
+                deadline: this.newDeadline,
+                createdAt: new Date().toLocaleString(),
+                lastEdited: null,
+                returnReason: '',
+                isOverdue: false,
+                isCompleted: false,
+                completionStatus: ''
+            };
+            this.columns[0].cards.push(card);
+            this.newTitle = ''; this.newDesc = ''; this.newDeadline = '';
+            this.save();
         },
-        deleteCard(cardId, columnIndex) {
-            this.columns[columnIndex].cards = this.columns[columnIndex].cards.filter(c => c.id !== cardId);
-            this.saveToLocalStorage();
-        },
-        moveCard({ cardId, fromColumnIndex, toColumnIndex }) {
-            const card = this.columns[fromColumnIndex].cards.find(c => c.id === cardId);
-            if (card) {
-                if (toColumnIndex === 3) {
+        moveCard(cardId, fromCol, toCol) {
+            const idx = this.columns[fromCol].cards.findIndex(c => c.id === cardId);
+            const card = this.columns[fromCol].cards.splice(idx, 1)[0];
+
+            // Логика проверки дедлайна при переходе в 4-й столбец (индекс 3)
+            if (toCol === 3) {
+                if (card.deadline) {
                     const now = new Date();
-                    const deadline = card.deadline ? new Date(card.deadline) : null;
-                    if (deadline && deadline < now) card.isOverdue = true;
-                    else card.isCompleted = true;
+                    const dl = new Date(card.deadline);
+                    if (dl < now) {
+                        card.isOverdue = true;
+                        card.isCompleted = false;
+                        card.completionStatus = "Дэдлайн просрочен";
+                    } else {
+                        card.isOverdue = false;
+                        card.isCompleted = true;
+                        card.completionStatus = "Дэдлайн выполнен в срок";
+                    }
+                } else {
+                    card.isCompleted = true;
+                    card.isOverdue = false;
+                    card.completionStatus = "Срок дэдлайна не указан";
                 }
-                this.columns[fromColumnIndex].cards = this.columns[fromColumnIndex].cards.filter(c => c.id !== cardId);
-                this.columns[toColumnIndex].cards.push(card);
-                this.saveToLocalStorage();
+            } else {
+                // Сброс статусов при возврате из выполненных
+                card.isOverdue = false;
+                card.isCompleted = false;
+                card.completionStatus = '';
             }
+
+            this.columns[toCol].cards.push(card);
+            this.save();
         },
-        updateCard(card) {
-            this.saveToLocalStorage();
-        },
-        saveToLocalStorage() {
-            localStorage.setItem("columns", JSON.stringify(this.columns));
+        save() {
+            localStorage.setItem('kanban_final_fixed', JSON.stringify(this.columns));
         }
-    }
+    },
+    template: `
+    <div class="notepad">
+        <div class="card-creator">
+            <h3>Новая задача</h3>
+            <input v-model="newTitle" placeholder="Заголовок задачи">
+            <textarea v-model="newDesc" placeholder="Описание задачи"></textarea>
+            <label style="font-size: 0.8rem; color: #4a5568;">Дэдлайн:</label>
+            <input type="datetime-local" v-model="newDeadline">
+            <button class="btn-submit" :disabled="!newTitle.trim()" @click="addCard">Создать задачу</button>
+        </div>
+
+        <div v-for="(col, idx) in columns" :key="idx" class="column">
+            <h2>{{ col.title }}</h2>
+            <div class="cards-container">
+                <card-component 
+                    v-for="card in col.cards" 
+                    :key="card.id"
+                    :card="card"
+                    :column-index="idx"
+                    @delete-card="(id) => { col.cards = col.cards.filter(c => c.id !== id); save(); }"
+                    @update-card="save"
+                    @move-card="data => moveCard(data.cardId, data.fromColumnIndex, data.toColumnIndex)"
+                ></card-component>
+            </div>
+        </div>
+    </div>
+`
 });
+
+new Vue({ el: '#app' });

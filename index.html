@@ -11,18 +11,7 @@
 </head>
 <body>
 <div id="app">
-    <h1>Канбан доска</h1>
-    <div class="columns">
-        <column-component
-                v-for="(column, index) in columns"
-                :key="index"
-                :column="column"
-                :column-index="index"
-                @add-card="addCard"
-                @move-card="moveCard"
-                @delete-card="deleteCard"
-        ></column-component>
-    </div>
+    <notepad></notepad>
 </div>
 </body>
 </html>
